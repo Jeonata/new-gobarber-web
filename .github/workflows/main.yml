@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+env:
+  BUCKET: jurubinho
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
+
+    - name: Install dependences
+      run: yarn install
+
+    - name: Build
+      run: yarn build
+
+    - name: LS
+      run: ls
+
+    - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '290.0.1'
+        project_id: ${{ secrets.PROJECT_ID }}
+        service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        export_default_credentials: true
+
+    - name: Upload file to bucket
+      run: gsutil -m rsync -R ./build gs://"$BUCKET"
+
+    - name: Allow public access
+      run: gsutil -m acl ch -R -u AllUsers:R gs://"$BUCKET"
+
+    # set chache
+    - name: Set cache control
+      run: gsutil setmeta -h "Cache-Control:no-cache, no-store" gs://"$BUCKET"/index.html
